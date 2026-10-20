@@ -1,0 +1,11 @@
+# Visual Studio / .NET build folders
+[Bb]in/
+[Oo]bj/
+.vs/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userprefs
+*.sln.docstates
