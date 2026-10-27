@@ -37,8 +37,8 @@ namespace MyApplication
                 Console.WriteLine("What do you like to do?");
                 Console.WriteLine("[1] Deposit");
                 Console.WriteLine("[2] Withdraw");
-                Console.WriteLine("[3] Exit");
-                Console.Write("Enter your choice (1-3): ");
+                Console.WriteLine("\n[3] Exit");
+                Console.Write("\nEnter your choice (1-3): ");
                 
                 string choice = Console.ReadLine().Trim();
 
@@ -46,7 +46,7 @@ namespace MyApplication
                 {
                   case "1": // this is the area where you will deposite your money
                       Console.WriteLine("\n DEPOSIT");
-                      Console.WriteLine("Enter your deposit amount: ");
+                      Console.WriteLine("\nEnter your deposit amount: ");
 
                       string inputAmount = Console.ReadLine();
 
