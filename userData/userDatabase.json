@@ -1,0 +1,21 @@
+[
+    {
+        "Id": 1,
+        "fullName": "Shin",
+        "userName": "shinValdez",
+        "password": "valdez098",
+
+
+        "balance": 1249
+    },
+
+    {
+        "Id": 1,
+        "fullName": "Mic",
+        "userName": "mic1123",
+        "password": "mic098",
+
+
+        "balance": 1249
+    }
+]

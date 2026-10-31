@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq; 
+using System.IO;
+using System.Text.Json;
 
 namespace MyApplication
 {
@@ -9,114 +11,150 @@ namespace MyApplication
     public class User 
     {
       public int Id { get; set;}
-      public string Name { get; set; }
+      public string fullName { get; set; }
+      public string userName { get; set; }
+      public string password { get; set; }
       public decimal Balance { get; set; }
     }
 
     static void Main(string[] args)
     {
+        string jsonfile = "userData/userDatabase.json";
         List<User> userData = new List<User>(); 
-        userData.Add(new User { Id = 1, Name = "shin", Balance = 12496m }); 
 
-        Console.WriteLine("Enter User Data (Name): ");
-        string inpput1 = Console.ReadLine().ToLower().Trim();
-
-        bool picking = true;
-
-        while (picking)
+        // 1. Load the static database from JSON if it exists
+        if (File.Exists(jsonfile))
         {
-            //THis line is to find the user first so we can use their details
-            var currentUser = userData.FirstOrDefault(i => i.Name == inpput1);
+            try
+            {
+                string jsonString = File.ReadAllText(jsonfile);
+                // Deserialize directly into our main userData list
+                var loadedUsers = JsonSerializer.Deserialize<List<User>>(jsonString);
+                
+                if (loadedUsers != null)
+                {
+                    userData = loadedUsers;
+                }
+                Console.WriteLine("User database loaded successfully!\n"); 
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading database: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Database file not found! Using fallback data."); 
+            // Fallback default user if file doesn't exist yet
+            userData.Add(new User { Id = 1, fullName = "shin", userName = "shin123", password = "password123", Balance = 12496m });
+        }
+
+        // 2. Login Prompt
+        User currentUser = null;
+        bool isLoggedIn = false;
+
+        while (!isLoggedIn)
+        {
+            Console.WriteLine("=== BANK LOGIN ===");
+            Console.Write("Enter Username: ");
+            string inputUser = Console.ReadLine().Trim();
+
+            Console.Write("Enter Password: ");
+            string inputPass = Console.ReadLine().Trim();
+
+            // Find user matching both username and password
+            currentUser = userData.FirstOrDefault(u => u.userName.Equals(inputUser, StringComparison.OrdinalIgnoreCase) && u.password == inputPass);
 
             if (currentUser != null)
             {
-                //Console.WriteLine("\nUser Data Found!");
-                Console.WriteLine($"\n Welsome Use {currentUser.Name}");
-                Console.WriteLine($"\nUser Balance: ${currentUser.Balance}");
-                
-                Console.WriteLine("What do you like to do?");
-                Console.WriteLine("[1] Deposit");
-                Console.WriteLine("[2] Withdraw");
-                Console.WriteLine("\n[3] Exit");
-                Console.Write("\nEnter your choice (1-3): ");
-                
-                string choice = Console.ReadLine().Trim();
+                Console.WriteLine($"\nLogin Successful! Welcome, {currentUser.fullName}.");
+                isLoggedIn = true;
+            }
+            else
+            {
+                Console.WriteLine("\nInvalid username or password. Please try again.\n");
+            }
+        }
 
-                switch (choice)
-                {
-                  case "1": // this is the area where you will deposite your money
-                      Console.WriteLine("\n DEPOSIT");
-                      Console.WriteLine("\nEnter your deposit amount: ");
+        // 3. ATM / Banking Loop
+        bool picking = true;
+        while (picking)
+        {
+            Console.WriteLine($"\nUser Balance: ${currentUser.Balance:N2}");
+            Console.WriteLine("What would you like to do?");
+            Console.WriteLine("[1] Deposit");
+            Console.WriteLine("[2] Withdraw");
+            Console.WriteLine("[3] Exit");
+            Console.Write("\nEnter your choice (1-3): ");
+            
+            string choice = Console.ReadLine().Trim();
 
-                      string inputAmount = Console.ReadLine();
+            switch (choice)
+            {
+                case "1": 
+                    Console.WriteLine("\n--- DEPOSIT ---");
+                    Console.Write("Enter your deposit amount: ");
+                    string inputAmount = Console.ReadLine();
 
-                      if (decimal.TryParse(inputAmount, out decimal parsedAmount))
-                      {
-                          currentUser.Balance += parsedAmount;
-                          Console.WriteLine("Deposit successful");
-                          Console.WriteLine($"New Balance: ${currentUser.Balance}");
-                      }
-                      else
-                      {
-                          Console.WriteLine("You entered an invalid amount, please try again.");
-                      }
-                      break;;
-                  case "2":
-                      Console.WriteLine("\nWithdraw");
+                    if (decimal.TryParse(inputAmount, out decimal parsedAmount) && parsedAmount > 0)
+                    {
+                        currentUser.Balance += parsedAmount;
+                        Console.WriteLine("Deposit successful!");
+                        Console.WriteLine($"New Balance: ${currentUser.Balance:N2}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("You entered an invalid amount, please try again.");
+                    }
+                    break;
 
-                      Console.WriteLine("Enter you withdraw amount: ");
-                      string withdrawInput = Console.ReadLine();
+                case "2":
+                    Console.WriteLine("\n--- WITHDRAW ---");
+                    Console.Write("Enter your withdraw amount: ");
+                    string withdrawInput = Console.ReadLine();
 
-                      if (decimal.TryParse(withdrawInput, out decimal withdrawAmount) && withdrawAmount > 0)
-                      {
+                    if (decimal.TryParse(withdrawInput, out decimal withdrawAmount) && withdrawAmount > 0)
+                    {
                         if (withdrawAmount <= currentUser.Balance)
                         {
                             currentUser.Balance -= withdrawAmount;
-                            Console.WriteLine($"Withdrawal successful! New Balance: ${currentUser.Balance}");
+                            Console.WriteLine($"Withdrawal successful! New Balance: ${currentUser.Balance:N2}");
                         }
                         else
                         {
                             Console.WriteLine("Error: Insufficient funds!");
                         }
-                      }
-                      else
-                      {
-                            Console.WriteLine("Invalid amount entered. Please try again.");
-                      }
-                      break;
-                  case "3":
-                      Console.WriteLine("Thank you for Banking with us!");
-                      picking = false;
-                      break;
-                  
-                  default:
-                    Console.WriteLine("Invalid selection. PLease choose 1, 2, or 3,");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid amount entered. Please try again.");
+                    }
                     break;
-                }
-            }
-            else
-            {
-                // If user isn't found, you might want to break or let them re-enter, 
-                // but it will move to the confirmation prompt below.
-                Console.WriteLine("User Data not Found!");
+
+                case "3":
+                    Console.WriteLine("Thank you for Banking with us!");
+                    picking = false;
+                    break;
+                
+                default:
+                    Console.WriteLine("Invalid selection. Please choose 1, 2, or 3.");
+                    break;
             }
 
-            Console.WriteLine("\nDo you want to continue? (y/n):");
-            string confirmationInput = Console.ReadLine()?.Trim().ToLower();
-            
-            if (confirmationInput == "y" || confirmationInput == "yes")
+            if (picking)
             {
-                Console.WriteLine("Continuing...\n");//This line of code is to search for a new user or do another transaction, keep looping.
-            } 
-            else if (confirmationInput == "n" || confirmationInput == "no")
-            {
-                Console.WriteLine("Exiting program. Goodbye!");
-                picking = false; // Safely ends the while loop
-            }
-            else
-            {
-                Console.WriteLine("\nInvalid Key. Exiting by default.");
-                picking = false;
+                Console.Write("\nDo you want to perform another transaction? (y/n): ");
+                string confirmationInput = Console.ReadLine()?.Trim().ToLower();
+                
+                if (confirmationInput == "y" || confirmationInput == "yes")
+                {
+                    Console.WriteLine("Continuing...\n");
+                } 
+                else
+                {
+                    Console.WriteLine("Exiting program. Goodbye!");
+                    picking = false;
+                }
             }
         }
     }
