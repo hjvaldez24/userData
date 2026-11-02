@@ -3,160 +3,188 @@ using System.Collections.Generic;
 using System.Linq; 
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Supabase.Postgrest.Models;
+using Supabase.Postgrest.Attributes;
 
 namespace MyApplication
 {
-  class Program
-  {
-    public class User 
+    class Program
     {
-      public int Id { get; set;}
-      public string fullName { get; set; }
-      public string userName { get; set; }
-      public string password { get; set; }
-      public decimal Balance { get; set; }
-    }
-
-    static void Main(string[] args)
-    {
-        string jsonfile = "userData/userDatabase.json";
-        List<User> userData = new List<User>(); 
-
-        // 1. Load the static database from JSON if it exists
-        if (File.Exists(jsonfile))
+        [Table("profiles")]
+        public class Profile : BaseModel
         {
-            try
-            {
-                string jsonString = File.ReadAllText(jsonfile);
-                // Deserialize directly into our main userData list
-                var loadedUsers = JsonSerializer.Deserialize<List<User>>(jsonString);
-                
-                if (loadedUsers != null)
-                {
-                    userData = loadedUsers;
-                }
-                Console.WriteLine("User database loaded successfully!\n"); 
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reading database: {ex.Message}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("Database file not found! Using fallback data."); 
-            // Fallback default user if file doesn't exist yet
-            userData.Add(new User { Id = 1, fullName = "shin", userName = "shin123", password = "password123", Balance = 12496m });
+            [PrimaryKey("id", false)]
+            [Column("id")]
+            public string? Id { get; set; }
+
+            [Column("fullname")]
+            public string? FullName { get; set; }
+
+            [Column("username")]
+            public string? UserName { get; set; }
+
+            [Column("password")]
+            public string? Password { get; set; }
+
+            [Column("balance")]
+            public decimal Balance { get; set; }
         }
 
-        // 2. Login Prompt
-        User currentUser = null;
-        bool isLoggedIn = false;
-
-        while (!isLoggedIn)
+        static async Task Main(string[] args)
         {
-            Console.WriteLine("=== BANK LOGIN ===");
-            Console.Write("Enter Username: ");
-            string inputUser = Console.ReadLine().Trim();
+            // 1. Load Environment Variables safely
+            DotNetEnv.Env.Load();
+            string url = Environment.GetEnvironmentVariable("SUPABASE_URL")?.TrimEnd('/') ?? "";
+            string key = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? "";
 
-            Console.Write("Enter Password: ");
-            string inputPass = Console.ReadLine().Trim();
-
-            // Find user matching both username and password
-            currentUser = userData.FirstOrDefault(u => u.userName.Equals(inputUser, StringComparison.OrdinalIgnoreCase) && u.password == inputPass);
-
-            if (currentUser != null)
+            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(key))
             {
-                Console.WriteLine($"\nLogin Successful! Welcome, {currentUser.fullName}.");
-                isLoggedIn = true;
+                Console.WriteLine("Error: SUPABASE_URL or SUPABASE_KEY is missing from your .env file!");
+                return;
             }
-            else
-            {
-                Console.WriteLine("\nInvalid username or password. Please try again.\n");
-            }
-        }
 
-        // 3. ATM / Banking Loop
-        bool picking = true;
-        while (picking)
-        {
-            Console.WriteLine($"\nUser Balance: ${currentUser.Balance:N2}");
-            Console.WriteLine("What would you like to do?");
-            Console.WriteLine("[1] Deposit");
-            Console.WriteLine("[2] Withdraw");
-            Console.WriteLine("[3] Exit");
-            Console.Write("\nEnter your choice (1-3): ");
+            var options = new Supabase.SupabaseOptions
+            {
+                AutoConnectRealtime = false,
+                Schema = "public"
+            };
+
+            var supabase = new Supabase.Client(url, key, options);
+            await supabase.InitializeAsync();
+
+            // 2. Fetch User Data using the typed generic model query
+            Console.WriteLine("Connecting to Supabase and fetching profiles...");
             
-            string choice = Console.ReadLine().Trim();
+            var response = await supabase.From<Profile>().Get();
+            List<Profile> userData = response.Models;
 
-            switch (choice)
+            if (userData == null || userData.Count == 0)
             {
-                case "1": 
-                    Console.WriteLine("\n--- DEPOSIT ---");
-                    Console.Write("Enter your deposit amount: ");
-                    string inputAmount = Console.ReadLine();
+                Console.WriteLine("No user profiles found in the database! Please check your table data.");
+                return;
+            }
 
-                    if (decimal.TryParse(inputAmount, out decimal parsedAmount) && parsedAmount > 0)
-                    {
-                        currentUser.Balance += parsedAmount;
-                        Console.WriteLine("Deposit successful!");
-                        Console.WriteLine($"New Balance: ${currentUser.Balance:N2}");
-                    }
-                    else
-                    {
-                        Console.WriteLine("You entered an invalid amount, please try again.");
-                    }
-                    break;
+            // 3. Login Prompt
+            Profile? currentUser = null;
+            bool isLoggedIn = false;
 
-                case "2":
-                    Console.WriteLine("\n--- WITHDRAW ---");
-                    Console.Write("Enter your withdraw amount: ");
-                    string withdrawInput = Console.ReadLine();
+            while (!isLoggedIn)
+            {
+                Console.Clear();
+                Console.WriteLine("=== BANK LOGIN ===");
+                Console.Write("Enter Username: ");
+                string inputUser = Console.ReadLine()?.Trim() ?? "";
 
-                    if (decimal.TryParse(withdrawInput, out decimal withdrawAmount) && withdrawAmount > 0)
-                    {
-                        if (withdrawAmount <= currentUser.Balance)
+                Console.Write("Enter Password: ");
+                string inputPass = Console.ReadLine()?.Trim() ?? "";
+
+                currentUser = userData.FirstOrDefault(u => 
+                    u.UserName != null && u.UserName.Equals(inputUser, StringComparison.OrdinalIgnoreCase) && 
+                    u.Password == inputPass);
+
+                if (currentUser != null)
+                {
+                    Console.WriteLine($"\nLogin Successful! Welcome, {currentUser.FullName}.");
+                    System.Threading.Thread.Sleep(1500);
+                    isLoggedIn = true;
+                }
+                else
+                {
+                    Console.WriteLine("\nInvalid username or password. Please try again.\n");
+                    Console.WriteLine("Press any key to retry...");
+                    Console.ReadKey();
+                }
+            }
+
+            // 4. ATM / Banking Loop
+            bool picking = true;
+            while (picking)
+            {
+                Console.Clear();
+                if (currentUser == null) break;
+
+                Console.WriteLine($"\nUser Balance: ${currentUser.Balance:N2}");
+                Console.WriteLine("What would you like to do?");
+                Console.WriteLine("[1] Deposit");
+                Console.WriteLine("[2] Withdraw");
+                Console.WriteLine("[3] Exit");
+                Console.Write("\nEnter your choice (1-3): ");
+                
+                string choice = Console.ReadLine()?.Trim() ?? "";
+
+                switch (choice)
+                {
+                    case "1": 
+                        Console.WriteLine("\n--- DEPOSIT ---");
+                        Console.Write("Enter your deposit amount: ");
+                        string inputAmount = Console.ReadLine() ?? "";
+
+                        if (decimal.TryParse(inputAmount, out decimal parsedAmount) && parsedAmount > 0)
                         {
-                            currentUser.Balance -= withdrawAmount;
-                            Console.WriteLine($"Withdrawal successful! New Balance: ${currentUser.Balance:N2}");
+                            currentUser.Balance += parsedAmount;
+                            await supabase.From<Profile>().Update(currentUser);
+
+                            Console.WriteLine("Deposit successful and saved to database!");
+                            Console.WriteLine($"New Balance: ${currentUser.Balance:N2}");
                         }
                         else
                         {
-                            Console.WriteLine("Error: Insufficient funds!");
+                            Console.WriteLine("You entered an invalid amount, please try again.");
                         }
-                    }
+                        break;
+
+                    case "2":
+                        Console.WriteLine("\n--- WITHDRAW ---");
+                        Console.Write("Enter your withdraw amount: ");
+                        string withdrawInput = Console.ReadLine() ?? "";
+
+                        if (decimal.TryParse(withdrawInput, out decimal withdrawAmount) && withdrawAmount > 0)
+                        {
+                            if (withdrawAmount <= currentUser.Balance)
+                            {
+                                currentUser.Balance -= withdrawAmount;
+                                await supabase.From<Profile>().Update(currentUser);
+
+                                Console.WriteLine($"Withdrawal successful! New Balance: ${currentUser.Balance:N2}");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Error: Insufficient funds!");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid amount entered. Please try again.");
+                        }
+                        break;
+
+                    case "3":
+                        Console.WriteLine("Thank you for Banking with us!");
+                        picking = false;
+                        break;
+                    
+                    default:
+                        Console.WriteLine("Invalid selection. Please choose 1, 2, or 3.");
+                        break;
+                }
+
+                if (picking)
+                {
+                    Console.Write("\nDo you want to perform another transaction? (y/n): ");
+                    string confirmationInput = Console.ReadLine()?.Trim().ToLower() ?? "";
+                    
+                    if (confirmationInput == "y" || confirmationInput == "yes")
+                    {
+                        Console.WriteLine("Continuing...\n");
+                    } 
                     else
                     {
-                        Console.WriteLine("Invalid amount entered. Please try again.");
+                        Console.WriteLine("Exiting program. Goodbye!");
+                        picking = false;
                     }
-                    break;
-
-                case "3":
-                    Console.WriteLine("Thank you for Banking with us!");
-                    picking = false;
-                    break;
-                
-                default:
-                    Console.WriteLine("Invalid selection. Please choose 1, 2, or 3.");
-                    break;
-            }
-
-            if (picking)
-            {
-                Console.Write("\nDo you want to perform another transaction? (y/n): ");
-                string confirmationInput = Console.ReadLine()?.Trim().ToLower();
-                
-                if (confirmationInput == "y" || confirmationInput == "yes")
-                {
-                    Console.WriteLine("Continuing...\n");
-                } 
-                else
-                {
-                    Console.WriteLine("Exiting program. Goodbye!");
-                    picking = false;
                 }
             }
         }
     }
-  }
 }
