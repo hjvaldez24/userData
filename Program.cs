@@ -33,7 +33,7 @@ namespace MyApplication
 
         static async Task Main(string[] args)
         {
-            // 1. Load Environment Variables safely
+            // this one is to load Environment Variables safely
             DotNetEnv.Env.Load();
             string url = Environment.GetEnvironmentVariable("SUPABASE_URL")?.TrimEnd('/') ?? "";
             string key = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? "";
@@ -53,7 +53,7 @@ namespace MyApplication
             var supabase = new Supabase.Client(url, key, options);
             await supabase.InitializeAsync();
 
-            // 2. Fetch User Data using the typed generic model query
+            // fetch User Data using the typed generic model query
             Console.WriteLine("Connecting to Supabase and fetching profiles...");
             
             var response = await supabase.From<Profile>().Get();
@@ -65,7 +65,7 @@ namespace MyApplication
                 return;
             }
 
-            // 3. Login Prompt
+            // login Prompt
             Profile? currentUser = null;
             bool isLoggedIn = false;
 
@@ -96,8 +96,10 @@ namespace MyApplication
                     Console.ReadKey();
                 }
             }
-
-            // 4. ATM / Banking Loop
+            /*
+                this loop will contain the part of the true and flase of the system 
+            */
+            //this line of code made for ATM / Banking Loop
             bool picking = true;
             while (picking)
             {
