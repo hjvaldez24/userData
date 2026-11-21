@@ -65,7 +65,10 @@ namespace MyApplication
                 return;
             }
 
-            // login Prompt
+            /* 
+                login system for the use so this part will fecth the user data to the database cloud.
+            
+            */
             Profile? currentUser = null;
             bool isLoggedIn = false;
 
